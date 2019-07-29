@@ -17,7 +17,23 @@
         <scissors-icon brand="var(--info)" view-box="0 0 20 20" width="16" height="16"/>
       </a>
     </div>
-    <img :src="src" :alt="image.name" class="gallery-image">
+    <img :src="src" :alt="image.name" class="gallery-image" />
+      <div v-if="image.hasOwnProperty('custom_properties')" class="image-status">
+          <template v-if="image.custom_properties.status == 0">
+            <span class="status status__undefined"></span>
+          </template>
+          <template v-if="image.custom_properties.status == 1">
+            <span class="status status__approved"></span>
+          </template>
+          <template v-if="image.custom_properties.status == 2">
+            <span class="status status__disapproved"></span>
+          </template>
+
+          <div v-if="image.custom_properties.hasOwnProperty('comment') && image.custom_properties.comment != null && image.custom_properties.comment.length > 0">
+              <img style="filter: invert(1);" width="18" height="18" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAMAAADXqc3KAAAAw1BMVEVHcEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoCuaQAAAAQHRSTlMANPfdZ/As6Q8EKPHSrPT+7nxDhs6v/Jo4yM2ujw4Tep7mjtFvDTEXO0ACywfvsTCXNRY6fT/Fz5Ev1P2b3qDEnRcG6AAAAL5JREFUKM+dkucSgyAMgHG17mr33nvvPXj/p2oNomC5613zx/h9kAsEhP4NXS0orqvUVJ3Dxl7DYSx8I+ajI2bitY3K5DEX1UYo2jgRd8KHGQqymzR8bysQ52glQmYHki6IKyNQCvbYIKwg3dFOpOBPgxSOMOaEDKn9XaoHos4IwvEaxCVqdyIRjg+kbCl5wBm9khPPi2XaSbPCiRxz7S0r5sspO5GB6jw8L+DOXDDHD38aogFjuS+evG/+fh1vWFc8wc2fcdsAAAAASUVORK5CYII=">
+<!--              {{ image.custom_properties.comment }}-->
+          </div>
+      </div>
   </gallery-item>
 </template>
 
@@ -110,12 +126,18 @@
   $border-radius: 10px;
 
   .gallery {
+      .gallery-item {
+          border: 1px solid gray;
+          background: #fff;
+      }
     .gallery-item-image.gallery-item {
       width: $item-max-size;
       height: $item-max-size;
+      padding-top: 60px;
 
       &:hover .gallery-item-info {
         display: flex;
+        background-color: rgba(23, 44, 53, 0.8);
       }
 
       .gallery-item-info {
@@ -171,4 +193,39 @@
       left: 10px;
     }
   }
+
+.image-status {
+    width: 100%;
+    background: #4c4c4c;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    padding: 5px 10px;
+    color: white;
+    min-height: 32px;
+
+    .status {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        display: block;
+        border-radius: 50%;
+        right: 8px;
+        border: 1px solid gray;
+
+        &__undefined {
+            background: gray;
+        }
+
+        &__approved {
+            background: greenyellow;
+        }
+
+        &__disapproved {
+            background: red;
+        }
+    }
+}
 </style>

@@ -1,4 +1,4 @@
-# Laravel Advanced Nova Media Library
+# Laravel Advanced Nova Media Library v2
 
 Manage images of [spatie's media library package](https://github.com/spatie/laravel-medialibrary). Upload multiple
 images and order them by drag and drop.
