@@ -10,10 +10,13 @@ images and order them by drag and drop.
 * [Generic file management](#generic-file-management)  
 * [Single image upload](#single-image-upload)  
 * [Multiple image upload](#multiple-image-upload)  
+* [Selecting existing media](#selecting-existing-media)  
 * [Names of uploaded images](#names-of-uploaded-images)  
 * [Image cropping](#image-cropping)
 * [Custom properties](#custom-properties)
+* [Custom headers](#custom-headers)
 * [Media Field (Video)](#media-field-video)  
+* [Change log](#change-log)  
 
 ## Examples
 ![Cropping](https://raw.githubusercontent.com/ebess/advanced-nova-media-library/master/docs/cropping.gif)
@@ -27,20 +30,24 @@ images and order them by drag and drop.
 composer require ebess/advanced-nova-media-library
 ```
 
+```bash
+php artisan vendor:publish --tag=nova-media-library
+```
+
 ## Model media configuration
 
 Let's assume you configured your model to use the media library like following:
 ```php
-use Spatie\MediaLibrary\Models\Media;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-public function registerMediaConversions(Media $media = null)
+public function registerMediaConversions(Media $media = null): void
 {
     $this->addMediaConversion('thumb')
         ->width(130)
         ->height(130);
 }
 
-public function registerMediaCollections()
+public function registerMediaCollections(): void
 {
     $this->addMediaCollection('main')->singleFile();
     $this->addMediaCollection('my_multi_collection');
@@ -57,7 +64,7 @@ In order to be able to upload and handle generic files just go ahead and use the
 use Ebess\AdvancedNovaMediaLibrary\Fields\Files;
 
 Files::make('Single file', 'one_file'),
-Files::make('Multiple files', 'multiple_files')->multiple(),
+Files::make('Multiple files', 'multiple_files'),
 ```
 
 ## Single image upload
@@ -71,7 +78,7 @@ public function fields(Request $request)
 {
     return [
         Images::make('Main image', 'main') // second parameter is the media collection name
-            ->thumbnail('thumb') // conversion used to display the image
+            ->conversionOnIndexView('thumb') // conversion used to display the image
             ->rules('required'), // validation rules
     ];
 }
@@ -90,10 +97,10 @@ public function fields(Request $request)
 {
     return [
         Images::make('Images', 'my_multi_collection') // second parameter is the media collection name
-            ->conversion('medium-size') // conversion used to display the "original" image
-            ->conversionOnView('thumb') // conversion used on the model's view
-            ->thumbnail('thumb') // conversion used to display the image on the model's index page
-            ->multiple() // enable upload of multiple images - also ordering
+            ->conversionOnPreview('medium-size') // conversion used to display the "original" image
+            ->conversionOnDetailView('thumb') // conversion used on the model's view
+            ->conversionOnIndexView('thumb') // conversion used to display the image on the model's index page
+            ->conversionOnForm('thumb') // conversion used to display the image on the model's form
             ->fullSize() // full size column
             ->rules('required', 'size:3') // validation rules for the collection of images
             // validation rules for the collection of images
@@ -101,6 +108,34 @@ public function fields(Request $request)
     ];
 }
 ```
+
+## Selecting existing media
+
+![Selecting existing media](https://raw.githubusercontent.com/ebess/advanced-nova-media-library/master/docs/existing-media.png)
+![Selecting existing media 2](https://raw.githubusercontent.com/ebess/advanced-nova-media-library/master/docs/existing-media-2.png)
+
+If you upload the same media files to multiple models and you do not want to select it from the file system
+all over again, use this feature. Selecting an already existing media will **copy it**.
+
+**Attention**: This feature will expose an endpoint to every user of your application to search existing media. 
+If your media upload / custom properties on the media models are confidential, **do not enable this feature!** 
+
+* Publish the config files if you did not yet
+```bash
+artisan vendor:publish --tag=nova-media-library
+```
+* Enable this feature in config file *config/nova-media-library*
+```php
+return [
+    'enable-existing-media' => true,
+];
+```
+* Enable the selection of existing media field
+```php
+Images::make('Image')->enableExistingMedia(),
+```
+
+**Note**: This feature does not support temporary URLs.
 
 ## Names of uploaded images
 
@@ -161,6 +196,11 @@ Images::make('Gallery')->croppingConfigs(['ratio' => 4/3]);
 ```
 Available cropping configuration, see https://github.com/timtnleeProject/vuejs-clipper#clipper-basic.
 
+It is possible to enforce cropping on upload, for example to ensure the image has the set aspect ratio:
+```php
+Images::make('Gallery')->mustCrop();
+```
+
 ## Custom properties
 
 ![Custom properties](https://raw.githubusercontent.com/ebess/advanced-nova-media-library/master/docs/custom-properties.gif)
@@ -172,17 +212,35 @@ Images::make('Gallery')
         Markdown::make('Description'),
     ]);
     
-Files::make('Multiple files', 'multiple_files')->multiple()
+Files::make('Multiple files', 'multiple_files')
     ->customPropertiesFields([
         Boolean::make('Active'),
         Markdown::make('Description'),
     ]);
     
 // custom properties without user input
-Files::make('Multiple files', 'multiple_files')->multiple()
+Files::make('Multiple files', 'multiple_files')
     ->customProperties([
         'foo' => auth()->user()->foo,
         'bar' => $api->getNeededData(),
+    ]);
+```
+
+## Show image statistics *(size, dimensions, type)*
+
+![Image statistics](https://raw.githubusercontent.com/ebess/advanced-nova-media-library/master/docs/show-statistics.png)
+
+```php
+Images::make('Gallery')
+    ->showStatistics();
+```
+
+## Custom headers
+
+```php
+Images::make('Gallery')
+    ->customHeaders([
+        'header-name' => 'header-value', 
     ]);
 ```
 
@@ -198,7 +256,7 @@ class Category extends Resource
     public function fields(Request $request)
     {
         Media::make('Gallery') // media handles videos
-            ->thumbnail('thumb')
+            ->conversionOnIndexView('thumb')
             ->singleMediaRules('max:5000'); // max 5000kb
     }
 }
@@ -207,7 +265,7 @@ class Category extends Resource
 
 class YourModel extends Model implements HasMedia
 {
-    public function registerMediaConversions(Media $media = null)
+    public function registerMediaConversions(Media $media = null): void
     {
         $this->addMediaConversion('thumb')
             ->width(368)
@@ -217,6 +275,21 @@ class YourModel extends Model implements HasMedia
 }
 ```
 
+## Temporary Urls
+
+If you are using Amazon S3 to store your media, you will need to use the `temporary` function on your field to generate
+a temporary signed URL. This function expects a valid Carbon instance that will specify when the URL should expire.
+
+```
+Images::make('Image 1', 'img1')
+    ->temporary(now()->addMinutes(5))
+
+Files::make('Multiple files', 'multiple_files')
+    ->temporary(now()->addMinutes(10),
+```
+
+**Note**: This feature does not work with the existing media feature. 
+
 # Credits
 
 * [nova media library](https://github.com/jameslkingsley/nova-media-library)
@@ -224,3 +297,19 @@ class YourModel extends Model implements HasMedia
 # Alternatives
 
 * [dmitrybubyakin/nova-medialibrary-field](https://github.com/dmitrybubyakin/nova-medialibrary-field)
+
+# Change log
+
+## v4.0.2 - 2022-04-26
+- Fix ratio for cropping in Nova 4. Config from `Images::( ... )->croppingConfigs()` are now passed along to the `stencil-props` property of the cropper. See [cropper docs](https://norserium.github.io/vue-advanced-cropper/components/rectangle-stencil.html#props) for more details on available props.
+
+## v4.0.1 - 2022-04-20
+- Fix details component
+- Fix layout inconsistencies 
+
+## v4.0.0 - 2022-04-18
+- Upgrade to support Laravel Nova 4
+- Breaks compatibility with Laravel Nova 1,2 and 3. For those nova versions  use `v3.*`
+- Replaced [vuejs-clipper](https://www.npmjs.com/package/vuejs-clipper) with [vue-advanced-cropper](https://www.npmjs.com/package/vue-advanced-cropper) for vue3 support
+
+Full change log in [PR #317](https://github.com/ebess/advanced-nova-media-library/pull/317)
